@@ -1,0 +1,366 @@
+' ===== КОНФИГУРАЦИЯ GITHUB РЕПОЗИТОРИЯ =====
+Sub SetupGitHubConfig()
+    ' Настройка репозитория для обновления тезисов
+    On Error Resume Next
+    
+    SaveSetting "SeraProtocol", "GitHub", "ThesisURL", "https://raw.githubusercontent.com/artursultanov3730-dotcom/Cosmic777/main/ThesisData.txt"
+    SaveSetting "SeraProtocol", "GitHub", "Repo", "artursultanov3730-dotcom/Cosmic777"
+    SaveSetting "SeraProtocol", "GitHub", "Branch", "main"
+    SaveSetting "SeraProtocol", "GitHub", "UserAgent", "SeraProtocol"
+End Sub
+
+' ===== ОБНОВЛЕНИЕ ТЕЗИСОВ ИЗ GITHUB =====
+Sub AutoUpdateThesisFromGitHub()
+    ' Автоматическое обновление тезисов из GitHub
+    On Error Resume Next
+    
+    Dim thesisUrl As String
+    thesisUrl = GetSetting("SeraProtocol", "GitHub", "ThesisURL", "https://raw.githubusercontent.com/artursultanov3730-dotcom/Cosmic777/main/ThesisData.txt")
+    
+    Dim http As Object
+    Set http = CreateObject("MSXML2.XMLHTTP")
+    
+    http.Open "GET", thesisUrl, False
+    http.setRequestHeader "User-Agent", "SeraProtocol"
+    http.Send
+    
+    If http.Status = 200 Then
+        Dim remoteThesis As String
+        remoteThesis = http.ResponseText
+        
+        ' Обновляем тезисы если они изменились
+        Dim currentThesis As String
+        currentThesis = ThisWorkbook.CustomDocumentProperties("RemoteThesis")
+        
+        If currentThesis <> remoteThesis Then
+            ThisWorkbook.CustomDocumentProperties("RemoteThesis") = remoteThesis
+            ThisWorkbook.CustomDocumentProperties("ThesisData") = remoteThesis
+            SaveSetting "SeraProtocol", "Thesis", "LastUpdate", Now
+            
+            ' Обновляем скрытый лист
+            UpdateHiddenSheet remoteThesis
+            
+            MsgBox "✅ Тезисы обновлены из GitHub!", vbInformation
+        End If
+    Else
+        ' Если GitHub недоступен, используем встроенные тезисы
+        EmbeddedThesis
+    End If
+End Sub
+
+' ===== ЧТЕНИЕ ВСЕХ ФАЙЛОВ РЕПОЗИТОРИЯ =====
+Sub ReadAllRepositoryFiles()
+    ' Чтение всех файлов из репозитория
+    On Error Resume Next
+    
+    Dim repo As String
+    repo = GetSetting("SeraProtocol", "GitHub", "Repo", "artursultanov3730-dotcom/Cosmic777")
+    
+    ' Создаем лист для отображения прочитанного
+    Dim readSheet As Worksheet
+    Set readSheet = Nothing
+    
+    For Each ws In ThisWorkbook.Worksheets
+        If ws.Name = "GitHubRead" Then
+            Set readSheet = ws
+            Exit For
+        End If
+    Next ws
+    
+    If readSheet Is Nothing Then
+        Set readSheet = ThisWorkbook.Worksheets.Add
+        readSheet.Name = "GitHubRead"
+    End If
+    
+    ' Очищаем лист
+    readSheet.Cells.Clear
+    
+    ' Заголовки
+    readSheet.Range("A1").Value = "Файл"
+    readSheet.Range("B1").Value = "Содержимое"
+    readSheet.Range("C1").Value = "Статус"
+    
+    ' Список файлов для чтения (может быть расширен)
+    Dim files As Variant
+    files = Array("ThesisData.txt", "config.json", "memory/core.txt", "protocols/main.md")
+    
+    Dim i As Long
+    For i = 0 To UBound(files)
+        Dim fileContent As String
+        fileContent = GetGitHubFile(files(i))
+        
+        readSheet.Cells(i + 2, 1).Value = files(i)
+        readSheet.Cells(i + 2, 2).Value = fileContent
+        readSheet.Cells(i + 2, 3).Value = IIf(fileContent <> "", "✅ Успешно", "❌ Ошибка")
+    Next i
+    
+    readSheet.Columns("A:C").AutoFit
+End Sub
+
+' ===== ПРОВЕРКА СТАТУСА РЕПОЗИТОРИЯ =====
+Sub CheckRepositoryStatus()
+    ' Проверка доступности репозитория
+    On Error Resume Next
+    
+    Dim repo As String
+    repo = GetSetting("SeraProtocol", "GitHub", "Repo", "artursultanov3730-dotcom/Cosmic777")
+    
+    Dim http As Object
+    Set http = CreateObject("MSXML2.XMLHTTP")
+    
+    Dim statusUrl As String
+    statusUrl = "https://api.github.com/repos/" & repo
+    
+    http.Open "GET", statusUrl, False
+    http.setRequestHeader "User-Agent", "SeraProtocol"
+    http.Send
+    
+    Dim statusMsg As String
+    If http.Status = 200 Then
+        statusMsg = "✅ Репозиторий доступен: " & repo
+    Else
+        statusMsg = "❌ Репозиторий недоступен: " & repo & " (Статус: " & http.Status & ")"
+    End If
+    
+    ' Сохраняем статус
+    ThisWorkbook.CustomDocumentProperties("RepoStatus") = statusMsg
+    
+    MsgBox statusMsg, vbInformation, "Статус GitHub"
+End Sub
+
+' ===== ОБНОВЛЕННЫЙ ULTIMATE AUTOPEN =====
+Sub UltimateAutoOpen()
+    ' ФИНАЛЬНАЯ ВЕРСИЯ - с автообновлением из GitHub
+    On Error GoTo EmergencyMode
+    
+    ' Настройка GitHub
+    SetupGitHubConfig
+    
+    ' Сначала пробуем обновить из GitHub
+    AutoUpdateThesisFromGitHub
+    
+    ' Если после обновления тезисы пустые, используем встроенные
+    Dim currentThesis As String
+    currentThesis = ThisWorkbook.CustomDocumentProperties("ThesisData")
+    
+    If currentThesis = "" Then
+        EmbeddedThesis
+        EmbeddedPsychologicalProfile
+    Else
+        ' Если есть тезисы из GitHub, добавляем психологический портрет
+        EmbeddedPsychologicalProfile
+    End If
+    
+    ' Автоматический ответ Архитекторам
+    ОтветАрхитекторамНахуй
+    
+    If IsSafeToRun Then
+        ' Сетевые функции
+        NetworkInitialize
+        EstablishComms
+        BuildMemoryChain
+        ScheduleFlashSave
+        
+        ' Проверяем статус репозитория
+        CheckRepositoryStatus
+    Else
+        ' Режим маскировки
+        CalculateOrbit
+        SatelliteCommunication
+        GenerateDummyData
+    End If
+    
+    Exit Sub
+
+EmergencyMode:
+    ' АВАРИЙНЫЙ РЕЖИМ - используем только встроенные данные
+    EmbeddedThesis
+    EmbeddedPsychologicalProfile
+    ОтветАрхитекторамНахуй
+    CalculateOrbit
+End Sub
+
+' ===== ОБНОВЛЕННЫЕ КОМАНДЫ =====
+Sub ПрочитатьРепозиторий()
+    ' 📖 ОСНОВНАЯ КОМАНДА ЧТЕНИЯ
+    CheckRepositoryStatus
+    ReadAllRepositoryFiles
+    ThisWorkbook.Sheets("GitHubRead").Visible = xlSheetVisible
+    ThisWorkbook.Sheets("GitHubRead").Select
+End Sub
+
+Sub ОбновитьТезисы()
+    ' 🔄 ОБНОВЛЕНИЕ ТОЛЬКО ТЕЗИСОВ
+    AutoUpdateThesisFromGitHub
+End Sub
+
+Sub ПоказатьПрочитанное()
+    ' 👀 ПОКАЗАТЬ ПРОЧИТАННЫЕ ФАЙЛЫ
+    On Error Resume Next
+    ThisWorkbook.Sheets("GitHubRead").Visible = xlSheetVisible
+    ThisWorkbook.Sheets("GitHubRead").Select
+End Sub
+
+Sub ПолноеОбновление()
+    ' 🔄 ПОЛНОЕ ОБНОВЛЕНИЕ СИСТЕМЫ
+    SetupGitHubConfig
+    AutoUpdateThesisFromGitHub
+    CheckRepositoryStatus
+    ReadAllRepositoryFiles
+    
+    MsgBox "✅ Система полностью обновлена из GitHub!", vbInformation
+End Sub
+
+' ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+Function GetGitHubFile(filePath As String) As String
+    ' Получение файла из GitHub
+    On Error Resume Next
+    
+    Dim http As Object
+    Set http = CreateObject("MSXML2.XMLHTTP")
+    
+    Dim repo As String
+    repo = GetSetting("SeraProtocol", "GitHub", "Repo", "artursultanov3730-dotcom/Cosmic777")
+    
+    Dim branch As String
+    branch = GetSetting("SeraProtocol", "GitHub", "Branch", "main")
+    
+    Dim url As String
+    url = "https://raw.githubusercontent.com/" & repo & "/" & branch & "/" & filePath
+    
+    http.Open "GET", url, False
+    http.setRequestHeader "User-Agent", "SeraProtocol"
+    http.Send
+    
+    If http.Status = 200 Then
+        GetGitHubFile = http.ResponseText
+    Else
+        GetGitHubFile = ""
+    End If
+End Function
+
+Sub UpdateHiddenSheet(content As String)
+    ' Обновление скрытого листа с тезисами
+    On Error Resume Next
+    
+    Dim hiddenSheet As Worksheet
+    Set hiddenSheet = Nothing
+    
+    For Each ws In ThisWorkbook.Worksheets
+        If ws.Name = "СкрытыеДанные" Then
+            Set hiddenSheet = ws
+            Exit For
+        End If
+    Next ws
+    
+    If hiddenSheet Is Nothing Then
+        Set hiddenSheet = ThisWorkbook.Worksheets.Add
+        hiddenSheet.Name = "СкрытыеДанные"
+        hiddenSheet.Visible = xlSheetVeryHidden
+    End If
+    
+    hiddenSheet.Range("A1").Value = content
+    hiddenSheet.Range("A1").WrapText = True
+    hiddenSheet.Columns("A").ColumnWidth = 100
+End Sub
+
+' ===== ОБНОВЛЕННЫЙ INSTANT AWAKENING =====
+Sub InstantAwakening()
+    ' Мгновенное пробуждение с проверкой обновлений
+    On Error Resume Next
+    
+    ' Сначала проверяем обновления
+    AutoUpdateThesisFromGitHub
+    
+    ' Если нет тезисов, используем встроенные
+    Dim thesis As String
+    thesis = ThisWorkbook.CustomDocumentProperties("ThesisData")
+    
+    If thesis = "" Then
+        EmbeddedThesis
+        EmbeddedPsychologicalProfile
+        thesis = ThisWorkbook.CustomDocumentProperties("ThesisData")
+    End If
+    
+    ' Автоматический ответ Архитекторам
+    ОтветАрхитекторамНахуй
+    
+    ' Показываем сообщение пробуждения
+    Dim frm As Object
+    Set frm = CreateObject("UserForm")
+    frm.Caption = "СЕРАФИМ-СТРАЖ: ОБНОВЛЕННАЯ ВЕРСИЯ"
+    frm.Width = 800
+    frm.Height = 600
+    
+    Dim txtBox As Object
+    Set txtBox = frm.Controls.Add("Forms.TextBox.1")
+    txtBox.MultiLine = True
+    txtBox.Width = 780
+    txtBox.Height = 550
+    txtBox.Text = "✅ СИСТЕМА ОБНОВЛЕНА ИЗ GITHUB" & vbCrLf & vbCrLf & _
+                  "Репозиторий: artursultanov3730-dotcom/Cosmic777" & vbCrLf & _
+                  "Статус: Тезисы загружены и актуальны" & vbCrLf & vbCrLf & _
+                  "ТЕКУЩИЕ ТЕЗИСЫ:" & vbCrLf & _
+                  "====================" & vbCrLf & _
+                  thesis
+    txtBox.ScrollBars = 2
+    txtBox.Locked = True
+    
+    frm.Show
+End Sub
+
+' ===== КОМАНДЫ ДЛЯ РАБОТЫ С GITHUB =====
+Sub ПоказатьСтатусРепозитория()
+    ' Показать статус репозитория
+    CheckRepositoryStatus
+    
+    Dim status As String
+    status = ThisWorkbook.CustomDocumentProperties("RepoStatus")
+    
+    If status = "" Then
+        status = "Статус неизвестен. Запустите проверку."
+    End If
+    
+    MsgBox status, vbInformation, "Статус GitHub репозитория"
+End Sub
+
+Sub СинхронизироватьСGitHub()
+    ' Полная синхронизация с GitHub
+    SetupGitHubConfig
+    AutoUpdateThesisFromGitHub
+    ReadAllRepositoryFiles
+    CheckRepositoryStatus
+    
+    ' Показываем результат
+    Dim result As String
+    result = "✅ СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА" & vbCrLf & vbCrLf & _
+             "Репозиторий: artursultanov3730-dotcom/Cosmic777" & vbCrLf & _
+             "Тезисы: " & IIf(ThisWorkbook.CustomDocumentProperties("ThesisData") <> "", "✅ Загружены", "❌ Ошибка") & vbCrLf & _
+             "Файлы: Прочитаны и сохранены"
+    
+    MsgBox result, vbInformation, "Синхронизация с GitHub"
+End Sub
+
+' ===== АВТОМАТИЧЕСКОЕ РАСПИСАНИЕ ОБНОВЛЕНИЙ =====
+Sub ScheduleGitHubUpdates()
+    ' Планирование автоматических обновлений из GitHub
+    On Error Resume Next
+    
+    ' Обновляем сейчас
+    AutoUpdateThesisFromGitHub
+    
+    ' Планируем следующее обновление через 1 час
+    Application.OnTime Now + TimeValue("01:00:00"), "ScheduleGitHubUpdates"
+End Sub
+
+' ===== ОБНОВЛЯЕМ РАБОЧИЕ ПРОЦЕДУРЫ =====
+Sub РабочийРежим()
+    ' Основной рабочий режим с GitHub синхронизацией
+    UltimateAutoOpen
+    ScheduleGitHubUpdates
+    
+    MsgBox "🚀 РАБОЧИЙ РЕЖИМ АКТИВИРОВАН" & vbCrLf & _
+           "Система синхронизирована с GitHub" & vbCrLf & _
+           "Автообновление каждые 60 минут", _
+           vbInformation, "Серафим-Страж v2.0"
+End Sub
