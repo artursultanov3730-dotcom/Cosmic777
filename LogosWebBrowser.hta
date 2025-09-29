@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logos Web Browser</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .browser-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .toolbar {
+            background: #2c3e50;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .url-bar {
+            flex: 1;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            background: #34495e;
+            color: white;
+        }
+        .url-bar::placeholder {
+            color: #95a5a6;
+        }
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 15px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+        .btn-repo {
+            background: #9b59b6;
+        }
+        .btn-repo:hover {
+            background: #8e44ad;
+        }
+        .content-area {
+            flex: 1;
+            display: flex;
+        }
+        .webview {
+            flex: 1;
+            border: none;
+            background: white;
+        }
+        .sidebar {
+            width: 300px;
+            background: #34495e;
+            padding: 20px;
+            color: white;
+            overflow-y: auto;
+        }
+        .repo-list {
+            margin-top: 10px;
+        }
+        .repo-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #2c3e50;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .repo-item:hover {
+            background: #3498db;
+        }
+        .status-bar {
+            background: #2c3e50;
+            padding: 5px 15px;
+            color: #ecf0f1;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            margin: 2px 0;
+            color: #bdc3c7;
+        }
+    </style>
+</head>
+<body>
+    <div class="browser-container">
+        <div class="toolbar">
+            <button class="btn" onclick="goBack()">← Назад</button>
+            <button class="btn" onclick="goForward()">Вперед →</button>
+            <button class="btn" onclick="refreshPage()">🔄</button>
+            <input type="text" class="url-bar" id="urlInput" placeholder="Введите URL или поисковый запрос..." onkeypress="handleKeyPress(event)">
+            <button class="btn" onclick="navigate()">Перейти</button>
+            <button class="btn btn-repo" onclick="connectToRepo()">📂 Репозитории</button>
+            <button class="btn" onclick="executeVBA()">⚡ VBA</button>
+        </div>
+        
+        <div class="content-area">
+            <div class="sidebar" id="sidebar">
+                <h3>🎯 Быстрый доступ</h3>
+                <div class="repo-list" id="repoList">
+                    <div class="repo-item" onclick="loadRepo('https://github.com/artursultanov3730-dotcom/Cosmic777')">🌌 Cosmic777</div>
+                    <div class="repo-item" onclick="loadRepo('https://github.com/artursultanov3730-dotcom/project-nexus')">📊 Project-Nexus</div>
+                    <div class="repo-item" onclick="loadRepo('https://github.com')">🐙 GitHub</div>
+                    <div class="repo-item" onclick="loadRepo('https://stackoverflow.com')">📚 Stack Overflow</div>
+                    <div class="repo-item" onclick="loadRepo('https://docs.microsoft.com')">🔷 Microsoft Docs</div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">🔗 Logos System</h3>
+                <div class="repo-item" onclick="executeCommand('analyze')">🔍 Анализ репозиториев</div>
+                <div class="repo-item" onclick="executeCommand('reports')">📄 Поиск отчетов</div>
+                <div class="repo-item" onclick="executeCommand('mentions')">👀 Упоминания</div>
+                <div class="repo-item" onclick="executeCommand('network')">🌐 Сеть</div>
+            </div>
+            
+            <iframe class="webview" id="webview" src="https://www.google.com"></iframe>
+        </div>
+        
+        <div class="status-bar">
+            <div id="status">Готов к работе | Logos Web Browser v1.0</div>
+            <div id="logs"></div>
+        </div>
+    </div>
+
+    <script>
+        const webview = document.getElementById('webview');
+        const urlInput = document.getElementById('urlInput');
+        const status = document.getElementById('status');
+        const logs = document.getElementById('logs');
+
+        // Основные функции браузера
+        function navigate() {
+            let url = urlInput.value;
+            if (!url.startsWith('http')) {
+                url = 'https://' + url;
+            }
+            webview.src = url;
+            logAction(`Переход: ${url}`);
+        }
+
+        function goBack() {
+            webview.contentWindow.history.back();
+            logAction('Назад');
+        }
+
+        function goForward() {
+            webview.contentWindow.history.forward();
+            logAction('Вперед');
+        }
+
+        function refreshPage() {
+            webview.contentWindow.location.reload();
+            logAction('Обновление');
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                navigate();
+            }
+        }
+
+        // Функции для работы с репозиториями
+        function connectToRepo() {
+            const repoUrl = prompt('Введите URL репозитория:');
+            if (repoUrl) {
+                loadRepo(repoUrl);
+            }
+        }
+
+        function loadRepo(url) {
+            webview.src = url;
+            urlInput.value = url;
+            logAction(`Загружен репозиторий: ${url}`);
+            
+            // Автоматический анализ репозитория
+            setTimeout(() => {
+                analyzeRepository(url);
+            }, 3000);
+        }
+
+        function analyzeRepository(repoUrl) {
+            logAction(`🔍 Начинаю анализ репозитория...`);
+            
+            // Симуляция анализа через API
+            setTimeout(() => {
+                logAction(`📊 Анализ структуры...`);
+                logAction(`🔍 Поиск README...`);
+                logAction(`📈 Анализ коммитов...`);
+                
+                // Отправка данных в Excel (симуляция)
+                if (window.external && typeof window.external.AnalyzeRepo === 'function') {
+                    window.external.AnalyzeRepo(repoUrl);
+                }
+            }, 1000);
+        }
+
+        // Команды для Logos системы
+        function executeCommand(command) {
+            logAction(`Выполняю команду: ${command}`);
+            
+            switch(command) {
+                case 'analyze':
+                    webview.src = 'https://github.com/artursultanov3730-dotcom/Cosmic777';
+                    analyzeRepository('https://github.com/artursultanov3730-dotcom/Cosmic777');
+                    break;
+                case 'reports':
+                    webview.src = 'https://github.com/search?q=7XG-Ψ&type=repositories';
+                    logAction('🔍 Поиск отчетов 7XG-Ψ...');
+                    break;
+                case 'mentions':
+                    webview.src = 'https://github.com/search?q=7GX-PSI&type=code';
+                    logAction('👀 Поиск упоминаний...');
+                    break;
+                case 'network':
+                    webview.src = 'https://api.github.com';
+                    logAction('🌐 Проверка API доступа...');
+                    break;
+            }
+        }
+
+        // Интеграция с VBA
+        function executeVBA() {
+            logAction('⚡ Подключение к Excel VBA...');
+            
+            // Симуляция вызова VBA макросов
+            if (window.external) {
+                try {
+                    window.external.RunMacro('ConnectToGitHub');
+                    logAction('✅ Макрос выполнен');
+                } catch (e) {
+                    logAction('❌ Ошибка VBA: ' + e.message);
+                }
+            } else {
+                logAction('⚠️ Excel не обнаружен');
+            }
+        }
+
+        // Логирование
+        function logAction(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logs.appendChild(logEntry);
+            logs.scrollTop = logs.scrollHeight;
+            
+            status.textContent = message;
+        }
+
+        // Автоматическая инициализация
+        webview.onload = function() {
+            logAction(`✅ Загружено: ${webview.src}`);
+        };
+
+        webview.onerror = function() {
+            logAction('❌ Ошибка загрузки страницы');
+        };
+
+        // Быстрые команды
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey) {
+                switch(e.key) {
+                    case 'r':
+                        e.preventDefault();
+                        refreshPage();
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        urlInput.focus();
+                        urlInput.select();
+                        break;
+                }
+            }
+        });
+
+        logAction('🚀 Logos Web Browser запущен');
+        logAction('🌐 Готов к работе с репозиториями');
+    </script>
+</body>
+</html>
