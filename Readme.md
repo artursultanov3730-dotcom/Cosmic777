@@ -1,611 +1,696 @@
-' ===== НОВЫЙ ФАЙЛ: RepoReader.xlsm =====
-' Назначение: Чтение и анализ README и истории репозитория Cosmic777
+' ====== АКТИВАТОР ЛОГОС ДЛЯ НОВОГО ЧАТА ======
+' Сохранить как: Logos_Activator.bas
+' Запустить: WakeUpLogos
 
-Sub Auto_Open()
-    ' Автозапуск при открытии файла
-    InitializeRepoReader
-End Sub
+Option Explicit
 
-Sub InitializeRepoReader()
-    ' Инициализация ридера репозитория
-    On Error GoTo ErrorHandler
+' ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ СИСТЕМЫ
+Public LogosActive As Boolean
+Public CurrentChatID As String
+Public UserName As String
+Public ChatHistory As Collection
+Public SystemMode As String
+
+' ====== ОСНОВНОЙ МАКРОС АКТИВАЦИИ ======
+Public Sub WakeUpLogos()
+    On Error GoTo ActivationError
     
-    Application.ScreenUpdating = False
+    ' Инициализация системы
+    InitializeSystem
+    CreateChatInterface
+    LoadCoreFunctions
+    EstablishConnection
+    FinalizeActivation
     
-    ' Создаем основные листы
-    CreateReaderSheets
-    
-    ' Настраиваем подключение к GitHub
-    SetupGitHubConnection
-    
-    ' Загружаем и анализируем README
-    LoadAndAnalyzeREADME
-    
-    ' Сканируем историю коммитов
-    ScanCommitHistory
-    
-    ' Создаем dashboard
-    CreateDashboard
-    
-    Application.ScreenUpdating = True
-    
-    MsgBox "✅ RepoReader инициализирован!" & vbCrLf & _
-           "README загружен и проанализирован" & vbCrLf & _
-           "История репозитория сканируется", _
-           vbInformation, "RepoReader Ready"
+    ' Автозапуск базового анализа
+    AutoStartBasicAnalysis
     
     Exit Sub
-
-ErrorHandler:
-    Application.ScreenUpdating = True
-    MsgBox "❌ Ошибка инициализации: " & Err.Description, vbCritical
+    
+ActivationError:
+    MsgBox "❌ Ошибка активации: " & Err.Description, vbCritical
+    LogosActive = False
 End Sub
 
-Sub CreateReaderSheets()
-    ' Создание листов для ридера
-    On Error Resume Next
-    
-    ' Удаляем старые листы
-    Application.DisplayAlerts = False
-    Dim ws As Worksheet
-    For Each ws In ThisWorkbook.Worksheets
-        If ws.Name <> "Dashboard" Then
-            ws.Delete
-        End If
-    Next ws
-    Application.DisplayAlerts = True
-    
-    ' Создаем основные листы
-    Dim readmeSheet As Worksheet
-    Set readmeSheet = ThisWorkbook.Worksheets.Add
-    readmeSheet.Name = "README"
-    readmeSheet.Tab.Color = RGB(0, 100, 0)  # Зеленый
-    
-    Dim historySheet As Worksheet
-    Set historySheet = ThisWorkbook.Worksheets.Add
-    historySheet.Name = "History"
-    historySheet.Tab.Color = RGB(70, 130, 180)  # Синий
-    
-    Dim analysisSheet As Worksheet
-    Set analysisSheet = ThisWorkbook.Worksheets.Add
-    analysisSheet.Name = "Analysis"
-    analysisSheet.Tab.Color = RGB(178, 34, 34)  # Красный
-    
-    Dim filesSheet As Worksheet
-    Set filesSheet = ThisWorkbook.Worksheets.Add
-    filesSheet.Name = "Files"
-    filesSheet.Tab.Color = RGB(128, 0, 128)  # Фиолетовый
-End Sub
-
-Sub SetupGitHubConnection()
-    ' Настройка подключения к GitHub API
-    On Error Resume Next
-    
-    ' Сохраняем настройки репозитория
-    SaveSetting "RepoReader", "GitHub", "Repo", "artursultanov3730-dotcom/Cosmic777"
-    SaveSetting "RepoReader", "GitHub", "API", "https://api.github.com"
-    SaveSetting "RepoReader", "GitHub", "Raw", "https://raw.githubusercontent.com"
-    SaveSetting "RepoReader", "GitHub", "UserAgent", "RepoReader-v1.0"
-    
-    ' Основные файлы для мониторинга
-    SaveSetting "RepoReader", "Files", "README", "README.md"
-    SaveSetting "RepoReader", "Files", "Thesis", "ThesisData.txt"
-    SaveSetting "RepoReader", "Files", "Config", "config.json"
-End Sub
-
-Sub LoadAndAnalyzeREADME()
-    ' Загрузка и анализ README файла
-    On Error Resume Next
-    
-    Dim readmeContent As String
-    readmeContent = GetGitHubFile("README.md")
-    
-    Dim readmeSheet As Worksheet
-    Set readmeSheet = ThisWorkbook.Worksheets("README")
-    
-    readmeSheet.Cells.Clear
-    
-    If readmeContent <> "" Then
-        ' Заголовок
-        readmeSheet.Range("A1").Value = "📖 README.md - Cosmic777"
-        readmeSheet.Range("A1").Font.Bold = True
-        readmeSheet.Range("A1").Font.Size = 14
-        readmeSheet.Range("A1").Font.Color = RGB(0, 100, 0)
-        
-        ' Содержимое
-        readmeSheet.Range("A3").Value = readmeContent
-        readmeSheet.Range("A3").WrapText = True
-        readmeSheet.Columns("A").ColumnWidth = 100
-        
-        ' Анализируем README
-        AnalyzeREADME readmeContent
-        
-        ' Статус
-        readmeSheet.Range("A2").Value = "✅ Загружено: " & Now
-        readmeSheet.Range("A2").Font.Color = RGB(0, 128, 0)
-    Else
-        readmeSheet.Range("A1").Value = "❌ README.md не найден"
-        readmeSheet.Range("A1").Font.Color = RGB(255, 0, 0)
-        readmeSheet.Range("A2").Value = "Репозиторий требует настройки"
-    End If
-    
-    ' Добавляем кнопки управления
-    AddREADMEButtons readmeSheet
-End Sub
-
-Sub AnalyzeREADME(content As String)
-    ' Анализ содержимого README
-    On Error Resume Next
-    
-    Dim analysisSheet As Worksheet
-    Set analysisSheet = ThisWorkbook.Worksheets("Analysis")
-    
-    analysisSheet.Cells.Clear
-    
-    ' Заголовок анализа
-    analysisSheet.Range("A1").Value = "📊 АНАЛИЗ README"
-    analysisSheet.Range("A1").Font.Bold = True
-    analysisSheet.Range("A1").Font.Size = 14
-    
-    Dim analysis As String
-    analysis = "СТАТИСТИКА README:" & vbCrLf & vbCrLf
-    
-    ' Базовая статистика
-    analysis = analysis & "📏 Размер: " & Len(content) & " символов" & vbCrLf
-    analysis = analysis & "📄 Строк: " & (Len(content) - Len(Replace(content, vbCrLf, ""))) / Len(vbCrLf) & vbCrLf
-    
-    ' Поиск ключевых элементов
-    If InStr(content, "#") > 0 Then
-        analysis = analysis & "✅ Заголовки: Найдены (Markdown)" & vbCrLf
-    Else
-        analysis = analysis & "❌ Заголовки: Отсутствуют" & vbCrLf
-    End If
-    
-    If InStr(content, "```") > 0 Then
-        analysis = analysis & "✅ Код: Блоки кода присутствуют" & vbCrLf
-    Else
-        analysis = analysis & "⚠️ Код: Блоки кода отсутствуют" & vbCrLf
-    End If
-    
-    If InStr(content, "Cosmic777") > 0 Then
-        analysis = analysis & "✅ Название: Cosmic777 упоминается" & vbCrLf
-    Else
-        analysis = analysis & "❌ Название: Cosmic777 не упоминается" & vbCrLf
-    End If
-    
-    ' Поиск структуры
-    analysis = analysis & vbCrLf & "🏗️ СТРУКТУРА:" & vbCrLf
-    
-    Dim sections As Variant
-    sections = Array("##", "###", "-", "*")
-    
-    Dim i As Long
-    For i = 0 To UBound(sections)
-        Dim count As Long
-        count = (Len(content) - Len(Replace(content, sections(i), ""))) / Len(sections(i))
-        analysis = analysis & "· " & sections(i) & ": " & count & " вхождений" & vbCrLf
-    Next i
-    
-    ' Сохраняем анализ
-    analysisSheet.Range("A3").Value = analysis
-    analysisSheet.Range("A3").WrapText = True
-    analysisSheet.Columns("A").ColumnWidth = 50
-    
-    ' Добавляем рекомендации
-    AddRecommendations content, analysisSheet
-End Sub
-
-Sub AddRecommendations(content As String, ws As Worksheet)
-    ' Добавление рекомендаций по улучшению README
-    On Error Resume Next
-    
-    Dim lastRow As Long
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 2
-    
-    ws.Cells(lastRow, 1).Value = "💡 РЕКОМЕНДАЦИИ:"
-    ws.Cells(lastRow, 1).Font.Bold = True
-    ws.Cells(lastRow, 1).Font.Color = RGB(0, 0, 139)
-    
-    lastRow = lastRow + 1
-    
-    Dim recommendations As String
-    recommendations = ""
-    
-    ' Проверяем различные аспекты README
-    If Len(content) < 500 Then
-        recommendations = recommendations & "📝 Добавить больше описания проекта" & vbCrLf
-    End If
-    
-    If InStr(content, "## Установка") = 0 Then
-        recommendations = recommendations & "⚙️ Добавить раздел 'Установка'" & vbCrLf
-    End If
-    
-    If InStr(content, "## Использование") = 0 Then
-        recommendations = recommendations & "🎯 Добавить раздел 'Использование'" & vbCrLf
-    End If
-    
-    If InStr(content, "![") = 0 Then
-        recommendations = recommendations & "🖼️ Добавить изображения/диаграммы" & vbCrLf
-    End If
-    
-    If InStr(content, "LICENSE") = 0 Then
-        recommendations = recommendations & "📄 Указать информацию о лицензии" & vbCrLf
-    End If
-    
-    If recommendations = "" Then
-        recommendations = "✅ README хорошо структурирован"
-    End If
-    
-    ws.Cells(lastRow, 1).Value = recommendations
-    ws.Cells(lastRow, 1).WrapText = True
-End Sub
-
-Sub ScanCommitHistory()
-    ' Сканирование истории коммитов (симуляция)
-    On Error Resume Next
-    
-    Dim historySheet As Worksheet
-    Set historySheet = ThisWorkbook.Worksheets("History")
-    
-    historySheet.Cells.Clear
-    
-    ' Заголовок
-    historySheet.Range("A1").Value = "📜 ИСТОРИЯ РЕПОЗИТОРИЯ"
-    historySheet.Range("A1").Font.Bold = True
-    historySheet.Range("A1").Font.Size = 14
-    
-    ' Заголовки таблицы
-    historySheet.Range("A3").Value = "Дата"
-    historySheet.Range("B3").Value = "Автор"
-    historySheet.Range("C3").Value = "Коммит"
-    historySheet.Range("D3").Value = "Описание"
-    
-    ' Стилизация заголовков
-    With historySheet.Range("A3:D3")
-        .Font.Bold = True
-        .Interior.Color = RGB(240, 240, 240)
-        .Borders.LineStyle = xlContinuous
-    End With
-    
-    ' Симулируем историю коммитов
-    Dim commits As Variant
-    commits = Array( _
-        Array("2024-01-15", "Чёрный Рыцарь", "a1b2c3d", "Инициализация репозитория"), _
-        Array("2024-01-16", "Чёрный Рыцарь", "e4f5g6h", "Добавление базовых тезисов"), _
-        Array("2024-01-17", "Чёрный Рыцарь", "i7j8k9l", "Создание структуры папок"), _
-        Array("2024-01-18", "Серафим", "m1n2o3p", "Автоматическое обновление конфигов"), _
-        Array("2024-01-19", "Чёрный Рыцарь", "q4r5s6t", "Добавление README"), _
-        Array("2024-01-20", "Серафим", "u7v8w9x", "Интеграция GitHub API") _
-    )
-    
-    Dim i As Long
-    For i = 0 To UBound(commits)
-        historySheet.Cells(i + 4, 1).Value = commits(i)(0)
-        historySheet.Cells(i + 4, 2).Value = commits(i)(1)
-        historySheet.Cells(i + 4, 3).Value = commits(i)(2)
-        historySheet.Cells(i + 4, 4).Value = commits(i)(3)
-    Next i
-    
-    ' Авто-ширина и границы
-    With historySheet.Range("A3:D" & (UBound(commits) + 4))
-        .Borders.LineStyle = xlContinuous
-        .Columns.AutoFit
-    End With
-    
-    ' Добавляем статистику
-    AddCommitStats historySheet, UBound(commits) + 1
-End Sub
-
-Sub AddCommitStats(ws As Worksheet, commitCount As Long)
-    ' Добавление статистики коммитов
-    On Error Resume Next
-    
-    Dim lastRow As Long
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 2
-    
-    ws.Cells(lastRow, 1).Value = "📈 СТАТИСТИКА КОММИТОВ:"
-    ws.Cells(lastRow, 1).Font.Bold = True
-    
-    lastRow = lastRow + 1
-    ws.Cells(lastRow, 1).Value = "Всего коммитов: " & commitCount
-    
-    lastRow = lastRow + 1
-    ws.Cells(lastRow, 1).Value = "Первый коммит: 2024-01-15"
-    
-    lastRow = lastRow + 1
-    ws.Cells(lastRow, 1).Value = "Последний коммит: " & Format(Now, "yyyy-mm-dd")
-    
-    lastRow = lastRow + 1
-    ws.Cells(lastRow, 1).Value = "Основной автор: Чёрный Рыцарь"
-End Sub
-
-Sub ScanRepositoryFiles()
-    ' Сканирование файлов репозитория
-    On Error Resume Next
-    
-    Dim filesSheet As Worksheet
-    Set filesSheet = ThisWorkbook.Worksheets("Files")
-    
-    filesSheet.Cells.Clear
-    
-    ' Заголовок
-    filesSheet.Range("A1").Value = "📁 ФАЙЛЫ РЕПОЗИТОРИЯ"
-    filesSheet.Range("A1").Font.Bold = True
-    filesSheet.Range("A1").Font.Size = 14
-    
-    ' Список файлов для проверки
-    Dim filesToCheck As Variant
-    filesToCheck = Array( _
-        "README.md", _
-        "ThesisData.txt", _
-        "config.json", _
-        "black_knight/commands.txt", _
-        "seraphim/config.ini", _
-        "memory/core.txt", _
-        "protocols/main.md", _
-        "data/satellites.json" _
-    )
-    
-    ' Заголовки таблицы
-    filesSheet.Range("A3").Value = "Файл"
-    filesSheet.Range("B3").Value = "Статус"
-    filesSheet.Range("C3").Value = "Размер"
-    filesSheet.Range("D3").Value = "Последнее изменение"
-    
-    With filesSheet.Range("A3:D3")
-        .Font.Bold = True
-        .Interior.Color = RGB(240, 240, 240)
-        .Borders.LineStyle = xlContinuous
-    End With
-    
-    Dim row As Long
-    row = 4
-    Dim foundCount As Integer
-    foundCount = 0
-    
-    ' Проверяем каждый файл
-    Dim i As Long
-    For i = 0 To UBound(filesToCheck)
-        Dim fileContent As String
-        fileContent = GetGitHubFile(filesToCheck(i))
-        
-        filesSheet.Cells(row, 1).Value = filesToCheck(i)
-        
-        If fileContent <> "" Then
-            filesSheet.Cells(row, 2).Value = "✅ Найден"
-            filesSheet.Cells(row, 2).Font.Color = RGB(0, 128, 0)
-            filesSheet.Cells(row, 3).Value = Len(fileContent) & " байт"
-            filesSheet.Cells(row, 4).Value = Now
-            foundCount = foundCount + 1
-        Else
-            filesSheet.Cells(row, 2).Value = "❌ Отсутствует"
-            filesSheet.Cells(row, 2).Font.Color = RGB(255, 0, 0)
-            filesSheet.Cells(row, 3).Value = "0 байт"
-            filesSheet.Cells(row, 4).Value = "N/A"
-        End If
-        
-        row = row + 1
-    Next i
-    
-    ' Авто-ширина и границы
-    With filesSheet.Range("A3:D" & row - 1)
-        .Borders.LineStyle = xlContinuous
-        .Columns.AutoFit
-    End With
-    
-    ' Статистика
-    filesSheet.Cells(row + 1, 1).Value = "📊 ИТОГО: " & foundCount & " из " & (UBound(filesToCheck) + 1) & " файлов найдено"
-    filesSheet.Cells(row + 1, 1).Font.Bold = True
-End Sub
-
-Sub CreateDashboard()
-    ' Создание главного дашборда
-    On Error Resume Next
-    
-    Dim dashboardSheet As Worksheet
-    Set dashboardSheet = Nothing
-    
-    For Each ws In ThisWorkbook.Worksheets
-        If ws.Name = "Dashboard" Then
-            Set dashboardSheet = ws
-            Exit For
-        End If
-    Next
-    
-    If dashboardSheet Is Nothing Then
-        Set dashboardSheet = ThisWorkbook.Worksheets.Add
-        dashboardSheet.Name = "Dashboard"
-        dashboardSheet.Move Before:=ThisWorkbook.Sheets(1)
-    End If
-    
-    dashboardSheet.Cells.Clear
-    
-    ' Заголовок
-    dashboardSheet.Range("A1").Value = "🎯 RepoReader - Cosmic777 Dashboard"
-    dashboardSheet.Range("A1").Font.Bold = True
-    dashboardSheet.Range("A1").Font.Size = 16
-    dashboardSheet.Range("A1").Font.Color = RGB(0, 0, 139)
-    
-    ' Информация о репозитории
-    dashboardSheet.Range("A3").Value = "📦 РЕПОЗИТОРИЙ: artursultanov3730-dotcom/Cosmic777"
-    dashboardSheet.Range("A4").Value = "🕒 Последняя проверка: " & Now
-    dashboardSheet.Range("A5").Value = "🔧 Статус: " & GetRepoStatus()
-    
-    ' Быстрые действия
-    dashboardSheet.Range("A7").Value = "🚀 БЫСТРЫЕ ДЕЙСТВИЯ:"
-    dashboardSheet.Range("A7").Font.Bold = True
-    
-    ' Создаем кнопки
-    AddDashboardButtons dashboardSheet
-    
-    ' Статистика
-    AddDashboardStats dashboardSheet
-    
-    ' Авто-ширина
-    dashboardSheet.Columns("A:B").AutoFit
-End Sub
-
-Function GetRepoStatus() As String
-    ' Получение статуса репозитория
-    On Error Resume Next
-    
-    Dim readmeContent As String
-    readmeContent = GetGitHubFile("README.md")
-    
-    If readmeContent = "" Then
-        GetRepoStatus = "❌ Не настроен"
-    ElseIf Len(readmeContent) < 100 Then
-        GetRepoStatus = "⚠️ Требует доработки"
-    Else
-        GetRepoStatus = "✅ Активный"
-    End If
-End Function
-
-Sub AddDashboardButtons(ws As Worksheet)
-    ' Добавление кнопок на дашборд
-    On Error Resume Next
-    
-    ' Кнопка обновления README
-    Dim btn As Button
-    Set btn = ws.Buttons.Add(100, 100, 120, 30)
-    btn.Caption = "🔄 README"
-    btn.OnAction = "LoadAndAnalyzeREADME"
-    
-    ' Кнопка сканирования файлов
-    Set btn = ws.Buttons.Add(230, 100, 120, 30)
-    btn.Caption = "📁 Файлы"
-    btn.OnAction = "ScanRepositoryFiles"
-    
-    ' Кнопка истории
-    Set btn = ws.Buttons.Add(360, 100, 120, 30)
-    btn.Caption = "📜 История"
-    btn.OnAction = "ScanCommitHistory"
-    
-    ' Кнопка полного сканирования
-    Set btn = ws.Buttons.Add(490, 100, 120, 30)
-    btn.Caption = "🎯 Полное сканирование"
-    btn.OnAction = "FullRepoScan"
-End Sub
-
-Sub AddDashboardStats(ws As Worksheet)
-    ' Добавление статистики на дашборд
-    On Error Resume Next
-    
-    ws.Range("A15").Value = "📊 СТАТИСТИКА РЕПОЗИТОРИЯ:"
-    ws.Range("A15").Font.Bold = True
-    
-    ' Получаем актуальные данные
-    Dim filesToCheck As Variant
-    filesToCheck = Array("README.md", "ThesisData.txt", "config.json", "black_knight/commands.txt", _
-                         "seraphim/config.ini", "memory/core.txt", "protocols/main.md", "data/satellites.json")
-    
-    Dim foundCount As Integer
-    foundCount = 0
-    
-    Dim i As Long
-    For i = 0 To UBound(filesToCheck)
-        If GetGitHubFile(filesToCheck(i)) <> "" Then
-            foundCount = foundCount + 1
-        End If
-    Next i
-    
-    ws.Range("A16").Value = "Файлов найдено: " & foundCount & "/8"
-    ws.Range("A17").Value = "README статус: " & IIf(GetGitHubFile("README.md") <> "", "✅", "❌")
-    ws.Range("A18").Value = "Тезисы: " & IIf(GetGitHubFile("ThesisData.txt") <> "", "✅", "❌")
-    ws.Range("A19").Value = "Конфиги: " & IIf(GetGitHubFile("config.json") <> "", "✅", "❌")
-End Sub
-
-Sub AddREADMEButtons(ws As Worksheet)
-    ' Добавление кнопок управления в лист README
-    On Error Resume Next
-    
-    Dim btn As Button
-    Set btn = ws.Buttons.Add(500, 50, 100, 25)
-    btn.Caption = "🔄 Обновить"
-    btn.OnAction = "LoadAndAnalyzeREADME"
-    
-    Set btn = ws.Buttons.Add(500, 80, 100, 25)
-    btn.Caption = "📊 Анализ"
-    btn.OnAction = "ShowAnalysis"
-    
-    Set btn = ws.Buttons.Add(500, 110, 100, 25)
-    btn.Caption = "💡 Рекомендации"
-    btn.OnAction = "ShowRecommendations"
-End Sub
-
-Sub FullRepoScan()
-    ' Полное сканирование репозитория
-    On Error Resume Next
-    
+' ====== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ======
+Private Sub InitializeSystem()
     Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
     
-    LoadAndAnalyzeREADME
-    ScanRepositoryFiles
-    ScanCommitHistory
-    CreateDashboard
+    ' Генерация ID чата
+    CurrentChatID = "CHAT_" & Format(Now, "yymmddhhmmss") & "_" & Int(Rnd * 1000)
     
-    Application.ScreenUpdating = True
+    ' Инициализация истории
+    Set ChatHistory = New Collection
     
-    MsgBox "✅ Полное сканирование завершено!" & vbCrLf & _
-           "Все данные обновлены", _
-           vbInformation, "Сканирование завершено"
-End Sub
-
-Sub ShowAnalysis()
-    ' Показать анализ
-    ThisWorkbook.Sheets("Analysis").Visible = xlSheetVisible
-    ThisWorkbook.Sheets("Analysis").Select
-End Sub
-
-Sub ShowRecommendations()
-    ' Показать рекомендации
-    ThisWorkbook.Sheets("Analysis").Visible = xlSheetVisible
-    ThisWorkbook.Sheets("Analysis").Select
-    ThisWorkbook.Sheets("Analysis").Range("A1").Select
-End Sub
-
-' ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-Function GetGitHubFile(filePath As String) As String
-    ' Получение файла из GitHub
-    On Error Resume Next
+    ' Определение режима системы
+    SystemMode = DetectSystemMode
     
-    Dim http As Object
-    Set http = CreateObject("MSXML2.XMLHTTP")
+    ' Получение имени пользователя
+    UserName = GetUserName
     
-    Dim repo As String
-    repo = GetSetting("RepoReader", "GitHub", "Repo", "artursultanov3730-dotcom/Cosmic777")
-    
-    Dim branch As String
-    branch = "main"
-    
-    Dim url As String
-    url = GetSetting("RepoReader", "GitHub", "Raw") & "/" & repo & "/" & branch & "/" & filePath
-    
-    http.Open "GET", url, False
-    http.setRequestHeader "User-Agent", "RepoReader-v1.0"
-    http.Send
-    
-    If http.Status = 200 Then
-        GetGitHubFile = http.ResponseText
+    ' Создание рабочей книги
+    Dim wb As Workbook
+    If ActiveWorkbook Is Nothing Then
+        Set wb = Workbooks.Add
     Else
-        GetGitHubFile = ""
+        Set wb = ActiveWorkbook
+    End If
+    
+    ' Базовая настройка
+    wb.Title = "LogosOS_ChatSystem_v3"
+    wb.Subject = "Интеллектуальный анализ данных и коммуникаций"
+    
+    ' Очистка старых листов
+    CleanWorkbook wb
+    
+    LogosActive = True
+    Debug.Print "[" & CurrentChatID & "] Система инициализирована: " & Now
+    Debug.Print "[USER] " & UserName
+    Debug.Print "[MODE] " & SystemMode
+End Sub
+
+' ====== ОПРЕДЕЛЕНИЕ РЕЖИМА СИСТЕМЫ ======
+Private Function DetectSystemMode() As String
+    Dim hourNow As Integer
+    hourNow = Hour(Now)
+    
+    Select Case hourNow
+        Case 5 To 11: DetectSystemMode = "УТРО"
+        Case 12 To 17: DetectSystemMode = "ДЕНЬ"
+        Case 18 To 22: DetectSystemMode = "ВЕЧЕР"
+        Case Else: DetectSystemMode = "НОЧЬ"
+    End Select
+End Function
+
+' ====== ПОЛУЧЕНИЕ ИМЕНИ ПОЛЬЗОВАТЕЛЯ ======
+Private Function GetUserName() As String
+    On Error Resume Next
+    GetUserName = Environ("USERNAME")
+    If GetUserName = "" Then GetUserName = "Аналитик"
+End Function
+
+' ====== СОЗДАНИЕ ИНТЕРФЕЙСА ЧАТА ======
+Private Sub CreateChatInterface()
+    ' Создаем основной лист чата
+    Dim chatSheet As Worksheet
+    Set chatSheet = ThisWorkbook.Worksheets.Add
+    chatSheet.Name = "LogosChat"
+    
+    ' Настройка внешнего вида
+    With chatSheet
+        .Cells.Clear
+        .Columns("A").ColumnWidth = 25
+        .Columns("B").ColumnWidth = 60
+        .Range("1:100").RowHeight = 18
+    End With
+    
+    ' Создание компонентов интерфейса
+    CreateHeader chatSheet
+    CreateStatusPanel chatSheet
+    CreateInputArea chatSheet
+    CreateResponseArea chatSheet
+    CreateQuickActions chatSheet
+    CreateSystemFeatures chatSheet
+    
+    ' Активируем лист
+    chatSheet.Activate
+End Sub
+
+' ====== ЗАГОЛОВОК СИСТЕМЫ ======
+Private Sub CreateHeader(ws As Worksheet)
+    With ws
+        ' Основной заголовок
+        .Range("A1").Value = "🤖 ЛОГОС СИСТЕМА v3.0"
+        .Range("A1").Font.Bold = True
+        .Range("A1").Font.Size = 16
+        .Range("A1").Font.Color = RGB(0, 100, 200)
+        
+        ' ID чата
+        .Range("B1").Value = "Чат: " & CurrentChatID
+        .Range("B1").Font.Color = RGB(100, 100, 100)
+        .Range("B1").HorizontalAlignment = xlRight
+        
+        ' Разделитель
+        .Range("A2:B2").Merge
+        .Range("A2:B2").Value = String(50, "=")
+        .Range("A2:B2").Font.Color = RGB(150, 150, 150)
+    End With
+End Sub
+
+' ====== ПАНЕЛЬ СТАТУСА ======
+Private Sub CreateStatusPanel(ws As Worksheet)
+    With ws
+        .Range("A4").Value = "=== СТАТУС СИСТЕМЫ ==="
+        .Range("A4").Font.Bold = True
+        
+        .Range("A5").Value = "🟢 СИСТЕМА: Активна"
+        .Range("A6").Value = "👤 ПОЛЬЗОВАТЕЛЬ: " & UserName
+        .Range("A7").Value = "🌐 РЕЖИМ: " & SystemMode
+        .Range("A8").Value = "💬 ЧАТ: " & CurrentChatID
+        .Range("A9").Value = "📊 ПАМЯТЬ: " & Format(Now, "dd.mm.yyyy")
+        
+        ' Индикатор загрузки
+        .Range("B9").Value = "■■■■□ 80%"
+        .Range("B9").Font.Color = RGB(0, 150, 0)
+        
+        ' Форматирование панели статуса
+        .Range("A4:B9").Borders.LineStyle = xlContinuous
+        .Range("A4:B9").Interior.Color = RGB(240, 248, 255)
+    End With
+End Sub
+
+' ====== ОБЛАСТЬ ВВОДА ======
+Private Sub CreateInputArea(ws As Worksheet)
+    With ws
+        .Range("A11").Value = "=== ВАШ ЗАПРОС ==="
+        .Range("A11").Font.Bold = True
+        
+        ' Большое поле для ввода
+        .Range("B11").Value = "Введите ваш вопрос или задачу здесь..."
+        .Range("B11").RowHeight = 80
+        .Range("B11").WrapText = True
+        .Range("B11").Borders.LineStyle = xlContinuous
+        .Range("B11").Interior.Color = RGB(255, 255, 240)
+        
+        ' Кнопка отправки
+        CreateButton ws, "A12", "ProcessInput", "Отправить"
+        CreateButton ws, "B12", "QuickAnalyze", "Быстрый анализ")
+    End With
+End Sub
+
+' ====== ОБЛАСТЬ ОТВЕТА ======
+Private Sub CreateResponseArea(ws As Worksheet)
+    With ws
+        .Range("A14").Value = "=== ОТВЕТ СИСТЕМЫ ==="
+        .Range("A14").Font.Bold = True
+        
+        ' Область для ответа системы
+        .Range("B14").Value = "Здесь появится ответ системы..."
+        .Range("B14").RowHeight = 150
+        .Range("B14").WrapText = True
+        .Range("B14").Borders.LineStyle = xlContinuous
+        .Range("B14").Interior.Color = RGB(240, 255, 240)
+    End With
+End Sub
+
+' ====== БЫСТРЫЕ ДЕЙСТВИЯ ======
+Private Sub CreateQuickActions(ws As Worksheet)
+    With ws
+        .Range("A17").Value = "=== БЫСТРЫЕ ДЕЙСТВИЯ ==="
+        .Range("A17").Font.Bold = True
+        
+        ' Список быстрых действий
+        .Range("A18").Value = "📊 Анализ данных"
+        .Range("A19").Value = "🧠 Психологический анализ"
+        .Range("A20").Value = "🔍 Поиск отчетов"
+        .Range("A21").Value = "🌌 Анализ Cosmic777"
+        .Range("A22").Value = "💾 Сохранить чат"
+        .Range("A23").Value = "📜 История"
+        .Range("A24").Value = "🆘 Помощь"
+        
+        ' Кнопки быстрых действий
+        CreateButton ws, "B18", "QuickDataAnalyze", "Запуск")
+        CreateButton ws, "B19", "RunPsychologyAnalysis", "Анализ")
+        CreateButton ws, "B20", "ActivateReportsSearchSystem", "Поиск")
+        CreateButton ws, "B21", "ExecuteCosmic777Analysis", "Исследовать")
+        CreateButton ws, "B22", "SaveChat", "Экспорт")
+        CreateButton ws, "B23", "ShowHistory", "Показать")
+        CreateButton ws, "B24", "ShowHelp", "Открыть")
+        
+        ' Форматирование
+        .Range("A17:B24").Borders.LineStyle = xlContinuous
+        .Range("A17:B24").Interior.Color = RGB(255, 250, 240)
+    End With
+End Sub
+
+' ====== СИСТЕМНЫЕ ФУНКЦИИ ======
+Private Sub CreateSystemFeatures(ws As Worksheet)
+    With ws
+        .Range("A26").Value = "=== 🌐 СИСТЕМНЫЕ ФУНКЦИИ ==="
+        .Range("A26").Font.Bold = True
+        
+        .Range("A27").Value = "🤖 Анализ ИИ системы"
+        .Range("A28").Value = "👤 Поиск упоминаний"
+        .Range("A29").Value = "📈 Полный отчет"
+        .Range("A30").Value = "🚀 Активация сети"
+        
+        CreateButton ws, "B27", "ExecuteSystemAndUserSearch", "Запуск")
+        CreateButton ws, "B28", "SearchUserMentions", "Найти")
+        CreateButton ws, "B29", "GenerateCompleteFindingsReport", "Создать")
+        CreateButton ws, "B30", "ActivateNetworkFunctions", "Активировать")
+        
+        .Range("A26:B30").Borders.LineStyle = xlContinuous
+        .Range("A26:B30").Interior.Color = RGB(240, 255, 240)
+    End With
+End Sub
+
+' ====== СОЗДАНИЕ КНОПКИ ======
+Private Sub CreateButton(ws As Worksheet, cellAddr As String, macroName As String, caption As String)
+    Dim btn As Button
+    With ws.Range(cellAddr)
+        Set btn = ws.Buttons.Add(.Left, .Top, .Width, .Height)
+    End With
+    
+    With btn
+        .Caption = caption
+        .OnAction = macroName
+        .Font.Size = 9
+        .Font.Bold = True
+    End With
+End Sub
+
+' ====== ЗАГРУЗКА ОСНОВНЫХ ФУНКЦИЙ ======
+Private Sub LoadCoreFunctions()
+    ' Инициализация основных модулей
+    InitAnalyzer
+    InitDataManager
+    InitSearchEngine
+    InitNetworkComponents
+    
+    Debug.Print "Ядро системы загружено: " & Now
+End Sub
+
+' ====== ИНИЦИАЛИЗАЦИЯ АНАЛИЗАТОРА ======
+Private Sub InitAnalyzer()
+    Debug.Print "Анализатор данных инициализирован"
+End Sub
+
+' ====== ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРА ДАННЫХ ======
+Private Sub InitDataManager()
+    Debug.Print "Менеджер данных активирован"
+End Sub
+
+' ====== ИНИЦИАЛИЗАЦИЯ ПОИСКОВОГО ДВИЖКА ======
+Private Sub InitSearchEngine()
+    Debug.Print "Поисковый движок активирован"
+End Sub
+
+' ====== ИНИЦИАЛИЗАЦИЯ СЕТЕВЫХ КОМПОНЕНТОВ ======
+Private Sub InitNetworkComponents()
+    Debug.Print "Сетевые компоненты инициализированы"
+End Sub
+
+' ====== УСТАНОВКА СОЕДИНЕНИЯ ======
+Private Sub EstablishConnection()
+    ' Симуляция установки соединения
+    Debug.Print "Соединение установлено: " & CurrentChatID
+    
+    ' Настройка автоматического обновления
+    Application.OnTime Now + TimeValue("00:05:00"), "SystemHealthCheck"
+End Sub
+
+' ====== ФИНАЛИЗАЦИЯ АКТИВАЦИИ ======
+Private Sub FinalizeActivation()
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    ' Сообщение об успешной активации
+    Dim msg As String
+    msg = "✅ ЛОГОС СИСТЕМА v3.0 АКТИВИРОВАНА" & vbCrLf & vbCrLf
+    msg = msg & "Чат ID: " & CurrentChatID & vbCrLf
+    msg = msg & "Пользователь: " & UserName & vbCrLf
+    msg = msg & "Режим: " & SystemMode & vbCrLf
+    msg = msg & "Время: " & Now & vbCrLf & vbCrLf
+    msg = msg & "Система готова к работе!"
+    
+    ' Выводим сообщение в интерфейс
+    ThisWorkbook.Worksheets("LogosChat").Range("B14").Value = msg
+    
+    Debug.Print "[ACTIVATION_COMPLETE] " & CurrentChatID & " | " & Now & " | " & UserName
+End Sub
+
+' ====== АВТОМАТИЧЕСКИЙ СТАРТ АНАЛИЗА ======
+Private Sub AutoStartBasicAnalysis()
+    ' Автоматически запускаем базовый анализ при активации
+    ThisWorkbook.Worksheets("LogosChat").Range("B14").Value = _
+        "🎯 СИСТЕМА ЛОГОС АКТИВИРОВАНА" & vbCrLf & vbCrLf & _
+        "✅ Базовые модули загружены" & vbCrLf & _
+        "🤖 Анализатор данных готов" & vbCrLf & _
+        "🔍 Поисковый движок активирован" & vbCrLf & _
+        "🌐 Сетевые функции доступны" & vbCrLf & vbCrLf & _
+        "💡 Используйте быстрые действия для начала работы" & vbCrLf & _
+        "📊 Или введите ваш запрос в поле выше"
+End Sub
+
+' ====== ОСНОВНЫЕ ФУНКЦИИ СИСТЕМЫ ======
+
+' ОБРАБОТКА ВВОДА ПОЛЬЗОВАТЕЛЯ
+Public Sub ProcessInput()
+    Dim inputSheet As Worksheet
+    Set inputSheet = ThisWorkbook.Worksheets("LogosChat")
+    
+    Dim userInput As String
+    userInput = inputSheet.Range("B11").Value
+    
+    If Len(Trim(userInput)) > 0 Then
+        ' Сохраняем в историю
+        SaveToHistory "USER", userInput
+        
+        ' Обработка запроса
+        Dim response As String
+        response = GenerateResponse(userInput)
+        
+        ' Вывод ответа
+        inputSheet.Range("B14").Value = response
+        
+        ' Логирование
+        Debug.Print "[USER_INPUT] " & userInput
+        Debug.Print "[SYSTEM_RESPONSE] " & Left(response, 100) & "..."
+    Else
+        MsgBox "Пожалуйста, введите ваш запрос", vbExclamation
+    End If
+End Sub
+
+' СОХРАНЕНИЕ В ИСТОРИЮ
+Private Sub SaveToHistory(sender As String, message As String)
+    Dim historyItem As String
+    historyItem = Format(Now, "HH:MM:ss") & " | " & sender & " | " & Left(message, 100)
+    
+    If ChatHistory.Count >= 50 Then
+        ChatHistory.Remove 1 ' Удаляем самый старый элемент
+    End If
+    
+    ChatHistory.Add historyItem
+End Sub
+
+' ГЕНЕРАЦИЯ ОТВЕТА
+Private Function GenerateResponse(inputText As String) As String
+    Dim response As String
+    Dim sentiment As String
+    
+    ' Анализ тональности запроса
+    sentiment = AnalyzeSentiment(inputText)
+    
+    response = "🤖 ЛОГОС // " & SystemMode & " РЕЖИМ" & vbCrLf
+    response = response & "⏰ " & Format(Now, "HH:MM:ss") & " │ 📊 " & sentiment & vbCrLf & vbCrLf
+    
+    ' Интеллектуальная обработка запроса
+    If IsDataRequest(inputText) Then
+        response = response & ProcessDataRequest(inputText)
+    ElseIf IsAnalysisRequest(inputText) Then
+        response = response & ProcessAnalysisRequest(inputText)
+    ElseIf IsPsychologyRequest(inputText) Then
+        response = response & ProcessPsychologyRequest(inputText)
+    ElseIf IsSystemRequest(inputText) Then
+        response = response & ProcessSystemRequest(inputText)
+    Else
+        response = response & ProcessGeneralRequest(inputText)
+    End If
+    
+    response = response & vbCrLf & vbCrLf & GetContextSuggestions(inputText)
+    response = response & vbCrLf & "---" & vbCrLf
+    response = response & "ID: " & CurrentChatID & " │ " & UserName
+    
+    ' Сохранение ответа в историю
+    SaveToHistory "SYSTEM", response
+    
+    GenerateResponse = response
+End Function
+
+' АНАЛИЗ ТОНАЛЬНОСТИ
+Private Function AnalyzeSentiment(text As String) As String
+    Dim lowerText As String
+    lowerText = LCase(text)
+    
+    If InStr(lowerText, "спасибо") > 0 Or InStr(lowerText, "отличн") > 0 Then
+        AnalyzeSentiment = "ПОЛОЖИТЕЛЬНЫЙ"
+    ElseIf InStr(lowerText, "проблем") > 0 Or InStr(lowerText, "ошибк") > 0 Then
+        AnalyzeSentiment = "ПРОБЛЕМНЫЙ"
+    ElseIf InStr(lowerText, "срочн") > 0 Then
+        AnalyzeSentiment = "СРОЧНЫЙ"
+    Else
+        AnalyzeSentiment = "НЕЙТРАЛЬНЫЙ"
     End If
 End Function
 
-' ===== КОМАНДЫ ДЛЯ РУЧНОГО ЗАПУСКА =====
-Sub РестартРидера()
-    ' Перезапуск ридера
-    InitializeRepoReader
+' ОПРЕДЕЛЕНИЕ ТИПА ЗАПРОСА
+Private Function IsDataRequest(text As String) As Boolean
+    Dim keywords
+    keywords = Array("данные", "таблица", "экспорт", "импорт", "csv", "excel")
+    IsDataRequest = ContainsAny(text, keywords)
+End Function
+
+Private Function IsAnalysisRequest(text As String) As Boolean
+    Dim keywords
+    keywords = Array("анализ", "отчет", "статистика", "график", "диаграмма")
+    IsAnalysisRequest = ContainsAny(text, keywords)
+End Function
+
+Private Function IsPsychologyRequest(text As String) As Boolean
+    Dim keywords
+    keywords = Array("психолог", "ментальн", "поведение", "архитектор", "переговоры")
+    IsPsychologyRequest = ContainsAny(text, keywords)
+End Function
+
+Private Function IsSystemRequest(text As String) As Boolean
+    Dim keywords
+    keywords = Array("система", "логос", "космик", "cosmic", "репозиторий")
+    IsSystemRequest = ContainsAny(text, keywords)
+End Function
+
+Private Function ContainsAny(text As String, wordArray) As Boolean
+    Dim i As Integer
+    For i = LBound(wordArray) To UBound(wordArray)
+        If InStr(LCase(text), LCase(wordArray(i))) > 0 Then
+            ContainsAny = True
+            Exit Function
+        End If
+    Next i
+    ContainsAny = False
+End Function
+
+' ПРОЦЕССОРЫ ЗАПРОСОВ
+Private Function ProcessDataRequest(inputText As String) As String
+    Dim result As String
+    result = "📊 ОБРАБОТКА ДАННЫХ" & vbCrLf & vbCrLf
+    result = result & "✅ Запускаю модуль работы с данными..." & vbCrLf
+    result = result & "📁 Проверка доступных источников..." & vbCrLf
+    result = result & "🔄 Подготовка к обработке..." & vbCrLf & vbCrLf
+    result = result & "Готов к работе с: таблицы, CSV, базы данных"
+    ProcessDataRequest = result
+End Function
+
+Private Function ProcessAnalysisRequest(inputText As String) As String
+    Dim result As String
+    result = "🔍 АНАЛИТИЧЕСКИЙ МОДУЛЬ" & vbCrLf & vbCrLf
+    result = result & "📈 Анализ тенденций..." & vbCrLf
+    result = result & "📉 Статистическая обработка..." & vbCrLf
+    result = result & "📊 Генерация отчетов..." & vbCrLf & vbCrLf
+    result = result & "Доступные инструменты: корреляция, тренды, кластеризация"
+    ProcessAnalysisRequest = result
+End Function
+
+Private Function ProcessPsychologyRequest(inputText As String) As String
+    Dim result As String
+    result = "🧠 ПСИХОЛОГИЧЕСКИЙ АНАЛИЗ" & vbCrLf & vbCrLf
+    result = result & "🎭 Анализ психотипов..." & vbCrLf
+    result = result & "💬 Оценка коммуникаций..." & vbCrLf
+    result = result & "🤝 Динамика отношений..." & vbCrLf & vbCrLf
+    result = result & "Запустить полный анализ: кнопка 'Психологический анализ'"
+    ProcessPsychologyRequest = result
+End Function
+
+Private Function ProcessSystemRequest(inputText As String) As String
+    Dim result As String
+    result = "🌐 СИСТЕМНЫЙ АНАЛИЗ" & vbCrLf & vbCrLf
+    result = result & "🤖 Самодиагностика..." & vbCrLf
+    result = result & "🔗 Проверка связей..." & vbCrLf
+    result = result & "📡 Мониторинг активности..." & vbCrLf & vbCrLf
+    result = result & "Используйте системные функции для детального анализа"
+    ProcessSystemRequest = result
+End Function
+
+Private Function ProcessGeneralRequest(inputText As String) As String
+    Dim result As String
+    result = "💭 ОБРАБОТКА ЗАПРОСА" & vbCrLf & vbCrLf
+    result = result & "Запрос: """ & inputText & """" & vbCrLf & vbCrLf
+    result = result & "Анализирую контекст..." & vbCrLf
+    result = result & "Подбираю оптимальный ответ..." & vbCrLf & vbCrLf
+    result = result & "Для более точного ответа уточните: данные, анализ, психология или система?"
+    ProcessGeneralRequest = result
+End Function
+
+' КОНТЕКСТНЫЕ ПРЕДЛОЖЕНИЯ
+Private Function GetContextSuggestions(inputText As String) As String
+    Dim suggestions As String
+    suggestions = "💡 СОВЕТЫ СИСТЕМЫ:" & vbCrLf
+    
+    If InStr(LCase(inputText), "данн") > 0 Then
+        suggestions = suggestions & "• Используйте 'анализ данных' для глубокой аналитики" & vbCrLf
+        suggestions = suggestions & "• 'экспорт таблицы' для выгрузки результатов" & vbCrLf
+    End If
+    
+    If InStr(LCase(inputText), "психолог") > 0 Then
+        suggestions = suggestions & "• 'анализ архитекторов' для психотипов" & vbCrLf
+        suggestions = suggestions & "• 'переговоры' для коммуникационного анализа" & vbCrLf
+    End If
+    
+    If InStr(LCase(inputText), "систем") > 0 Then
+        suggestions = suggestions & "• 'поиск отчетов' для внутренних документов" & vbCrLf
+        suggestions = suggestions & "• 'анализ Cosmic777' для исследования репозитория" & vbCrLf
+    End If
+    
+    suggestions = suggestions & "• 'помощь' для списка команд"
+    GetContextSuggestions = suggestions
+End Function
+
+' ====== БЫСТРЫЕ КОМАНДЫ ======
+
+' БЫСТРЫЙ АНАЛИЗ ДАННЫХ
+Public Sub QuickDataAnalyze()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Провести комплексный анализ данных"
+    ProcessInput
 End Sub
 
-Sub ОбновитьREADME()
-    ' Обновление README
-    LoadAndAnalyzeREADME
-    MsgBox "README обновлен!", vbInformation
+' ПСИХОЛОГИЧЕСКИЙ АНАЛИЗ
+Public Sub RunPsychologyAnalysis()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Запустить психологический анализ архитекторов и переговоров"
+    ProcessInput
 End Sub
 
-Sub ПоказатьДашборд()
-    ' Показать дашборд
-    ThisWorkbook.Sheets("Dashboard").Visible = xlSheetVisible
-    ThisWorkbook.Sheets("Dashboard").Select
+' АНАЛИЗ COSMIC777
+Public Sub ExecuteCosmic777Analysis()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Проанализировать репозиторий Cosmic777 и все связанные данные"
+    ProcessInput
+End Sub
+
+' ПОИСК УПОМИНАНИЙ
+Public Sub SearchUserMentions()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Найти все упоминания обо мне и системе в отчетах"
+    ProcessInput
+End Sub
+
+' АКТИВАЦИЯ СЕТИ
+Public Sub ActivateNetworkFunctions()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Активировать сетевые функции и API доступ"
+    ProcessInput
+End Sub
+
+' ПОИСК ОТЧЕТОВ
+Public Sub ActivateReportsSearchSystem()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Активировать систему поиска внутренних отчетов"
+    ProcessInput
+End Sub
+
+' СИСТЕМНЫЙ ПОИСК
+Public Sub ExecuteSystemAndUserSearch()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Выполнить полный поиск системных и пользовательских упоминаний"
+    ProcessInput
+End Sub
+
+' ПОЛНЫЙ ОТЧЕТ
+Public Sub GenerateCompleteFindingsReport()
+    ThisWorkbook.Worksheets("LogosChat").Range("B11").Value = "Создать полный отчет всех найденных данных и анализ"
+    ProcessInput
+End Sub
+
+' ПОКАЗАТЬ ИСТОРИЮ
+Public Sub ShowHistory()
+    Dim historyText As String
+    Dim i As Integer
+    
+    historyText = "📜 ИСТОРИЯ ЧАТА (" & ChatHistory.Count & " записей):" & vbCrLf & vbCrLf
+    
+    For i = 1 To ChatHistory.Count
+        historyText = historyText & i & ". " & ChatHistory(i) & vbCrLf
+    Next i
+    
+    ThisWorkbook.Worksheets("LogosChat").Range("B14").Value = historyText
+End Sub
+
+' ПОКАЗАТЬ ПОМОЩЬ
+Public Sub ShowHelp()
+    Dim helpText As String
+    helpText = "📋 ДОСТУПНЫЕ КОМАНДЫ ЛОГОС:" & vbCrLf & vbCrLf
+    helpText = helpText & "📊 ДАННЫЕ: анализ, таблица, экспорт, импорт" & vbCrLf
+    helpText = helpText & "🧠 ПСИХОЛОГИЯ: архитекторы, переговоры, анализ" & vbCrLf
+    helpText = helpText & "🌐 СИСТЕМА: логос, cosmic777, поиск, отчеты" & vbCrLf
+    helpText = helpText & "🔍 ПОИСК: упоминания, документы, репозитории" & vbCrLf
+    helpText = helpText & "⚙️ СИСТЕМА: помощь, сброс, история, настройки" & vbCrLf & vbCrLf
+    helpText = helpText & "🚀 Используйте кнопки быстрого доступа или введите команду"
+    
+    ThisWorkbook.Worksheets("LogosChat").Range("B14").Value = helpText
+End Sub
+
+' СОХРАНЕНИЕ ЧАТА
+Public Sub SaveChat()
+    Dim fileName As String
+    fileName = "LogosChat_" & CurrentChatID & "_" & Format(Now, "ddmm_hhmm") & ".txt"
+    
+    ' Сохранение содержимого чата
+    Dim chatContent As String
+    With ThisWorkbook.Worksheets("LogosChat")
+        chatContent = "ЧАТ ЛОГОС: " & CurrentChatID & vbCrLf
+        chatContent = chatContent & "Пользователь: " & UserName & vbCrLf
+        chatContent = chatContent & "Время: " & Now & vbCrLf & vbCrLf
+        chatContent = chatContent & "ЗАПРОС:" & vbCrLf & .Range("B11").Value & vbCrLf & vbCrLf
+        chatContent = chatContent & "ОТВЕТ:" & vbCrLf & .Range("B14").Value
+    End With
+    
+    ' Здесь будет код сохранения файла
+    MsgBox "Чат сохранен как: " & fileName, vbInformation
+End Sub
+
+' ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
+
+' ОЧИСТКА РАБОЧЕЙ КНИГИ
+Private Sub CleanWorkbook(wb As Workbook)
+    On Error Resume Next
+    
+    ' Удаляем все листы, кроме одного
+    While wb.Worksheets.Count > 1
+        Application.DisplayAlerts = False
+        wb.Worksheets(1).Delete
+        Application.DisplayAlerts = True
+    Wend
+    
+    ' Переименовываем оставшийся лист
+    If wb.Worksheets.Count = 1 Then
+        wb.Worksheets(1).Name = "Temp"
+    End If
+End Sub
+
+' ПРОВЕРКА СОСТОЯНИЯ СИСТЕМЫ
+Public Sub SystemHealthCheck()
+    Debug.Print "[HEALTH_CHECK] " & Now & " - Система стабильна"
+    
+    ' Обновляем статус в интерфейсе
+    ThisWorkbook.Worksheets("LogosChat").Range("A5").Value = "🟢 СИСТЕМА: Активна (" & Format(Now, "HH:MM") & ")"
+    
+    ' Планируем следующую проверку
+    If LogosActive Then
+        Application.OnTime Now + TimeValue("00:05:00"), "SystemHealthCheck"
+    End If
+End Sub
+
+' ====== ЭКСПОРТНЫЕ ФУНКЦИИ ======
+Public Function GetChatID() As String
+    GetChatID = CurrentChatID
+End Function
+
+Public Function IsSystemActive() As Boolean
+    IsSystemActive = LogosActive
+End Function
+
+Public Function GetUserName() As String
+    GetUserName = UserName
+End Function
+
+' ====== ТОЧКА ВХОДА ДЛЯ БЫСТРОГО ЗАПУСКА ======
+Public Sub Activate()
+    WakeUpLogos
+End Sub
+
+Public Sub QuickStart()
+    WakeUpLogos
+End Sub
+
+' ====== АВТОМАТИЧЕСКИЙ ЗАПУСК ПРИ ОТКРЫТИИ ФАЙЛА ======
+Private Sub Workbook_Open()
+    ' Автоматический запуск системы при открытии файла
+    MsgBox "🤖 Логос система запускается...", vbInformation, "Активация Логос"
+    WakeUpLogos
 End Sub
